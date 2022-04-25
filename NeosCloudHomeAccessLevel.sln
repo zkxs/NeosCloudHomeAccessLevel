@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{fdffe95e-9875-4a34-a49c-1d5f68b4583c}") = "NeosCloudHomeAccessLevel", "NeosCloudHomeAccessLevel\NeosCloudHomeAccessLevel.csproj", "{98cbc89b-d911-45b1-b6a6-9f2345c88156}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{98cbc89b-d911-45b1-b6a6-9f2345c88156}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98cbc89b-d911-45b1-b6a6-9f2345c88156}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98cbc89b-d911-45b1-b6a6-9f2345c88156}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98cbc89b-d911-45b1-b6a6-9f2345c88156}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {023E4190-76B5-400D-80F8-4FBA92858EF7}
+	EndGlobalSection
+EndGlobal
