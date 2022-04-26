@@ -17,19 +17,21 @@ namespace CloudHomeAccessLevel
     {
         public override string Name => "CloudHomeAccessLevel";
         public override string Author => "runtime";
-        public override string Version => "1.0.0";
+        public override string Version => "1.1.0";
         public override string Link => "https://github.com/zkxs/NeosCloudHomeAccessLevel";
-
-        [AutoRegisterConfigKey]
-        private static readonly ModConfigurationKey<bool> KEY_ENABLE = new ModConfigurationKey<bool>("enabled", "Enables the CloudHomeAccessLevel mod", () => true);
 
         [AutoRegisterConfigKey]
         private static readonly ModConfigurationKey<SessionAccessLevel> KEY_DEFAULT_ACCESS_LEVEL = new ModConfigurationKey<SessionAccessLevel>("access_level", "Default access level for your cloud home", () => SessionAccessLevel.Private);
 
+        [AutoRegisterConfigKey]
+        private static readonly ModConfigurationKey<bool> KEY_HIDE_FROM_LISTING = new ModConfigurationKey<bool>("hide_from_listing", "Hide your cloud home from the world listing?", () => false);
+
         private static ModConfiguration? config;
         private static MethodInfo? getConfiguredSessionAccessLevelMethod;
+        private static MethodInfo? getConfiguredHideFromListing;
         private static MethodInfo? announceHomeOnLanGetter;
         private static ConstructorInfo? sessionAccessLevelConstructor;
+        private static ConstructorInfo? nullableBoolConstructor;
 
         public override void DefineConfiguration(ModConfigurationDefinitionBuilder builder)
         {
@@ -44,13 +46,6 @@ namespace CloudHomeAccessLevel
             if (config == null)
             {
                 Error("Could not load configuration");
-                return;
-            }
-
-            // disable the mod if the enabled config has been set to false
-            if (!config.GetValue(KEY_ENABLE)) // this is safe as the config has a default value
-            {
-                Debug("Mod disabled, returning early.");
                 return;
             }
 
@@ -77,9 +72,17 @@ namespace CloudHomeAccessLevel
                 return;
             }
 
+            nullableBoolConstructor = AccessTools.DeclaredConstructor(typeof(bool?), new Type[] { typeof(bool) });
+            if (nullableBoolConstructor == null)
+            {
+                Error("Could not find bool? constructor");
+                return;
+            }
+
             MethodInfo openHomeOrCreateAsyncBody = GetAsyncMethodBody(openHomeOrCreate);
             MethodInfo transpiler = AccessTools.DeclaredMethod(typeof(CloudHomeAccessLevel), nameof(Transpiler));
             getConfiguredSessionAccessLevelMethod = AccessTools.DeclaredMethod(typeof(CloudHomeAccessLevel), nameof(GetConfiguredSessionAccessLevel));
+            getConfiguredHideFromListing = AccessTools.DeclaredMethod(typeof(CloudHomeAccessLevel), nameof(GetConfiguredHideFromListing));
             harmony.Patch(openHomeOrCreateAsyncBody, transpiler: new HarmonyMethod(transpiler));
         }
 
@@ -96,9 +99,12 @@ namespace CloudHomeAccessLevel
              * IL_017a: br.s         IL_017d
              * IL_017c: ldc.i4.1
              * IL_017d: newobj       instance void valuetype [mscorlib]System.Nullable`1<valuetype [CloudX.Shared]CloudX.Shared.SessionAccessLevel>::.ctor(!0)
+             * IL_0182: stfld        valuetype [mscorlib]System.Nullable`1<valuetype [CloudX.Shared]CloudX.Shared.SessionAccessLevel> FrooxEngine.WorldStartSettings::DefaultAccessLevel
              * 
              * That code is checking if Userspace.AnnounceHomeOnLAN() is true, and if so it's loading SessionAccessLevel.LAN onto the stack.
              * Otherwise, it's loading SessionAccessLevel.Private onto the stack.
+             * Finally, it's storing that into the DefaultAccessLevel field of a WorldStartSettings.
+             * When all this is done, the WorldStartSettings is on the top of the stack.
              */
 
             for (int i = 0; i < codes.Count - 5; i++)
@@ -108,7 +114,8 @@ namespace CloudHomeAccessLevel
                     codes[i + 2].LoadsConstant((int)SessionAccessLevel.Private) &&
                     codes[i + 3].opcode.Equals(OpCodes.Br_S) &&
                     codes[i + 4].LoadsConstant((int)SessionAccessLevel.LAN) &&
-                    codes[i + 5].opcode == OpCodes.Newobj && sessionAccessLevelConstructor!.Equals(codes[i + 5].operand)
+                    codes[i + 5].opcode.Equals(OpCodes.Newobj) && sessionAccessLevelConstructor!.Equals(codes[i + 5].operand) &&
+                    codes[i + 6].opcode.Equals(OpCodes.Stfld)
                 )
                 {
                     // change the call to point to my GetConfiguredSessionAccessLevel() method
@@ -119,6 +126,21 @@ namespace CloudHomeAccessLevel
                     codes.RemoveAt(i + 1); // ldc.i4.0
                     codes.RemoveAt(i + 1); // br.s IL_017d
                     codes.RemoveAt(i + 1); // ldc.i4.1
+
+                    // i + 1 is now the newobj, which creates the Nullable<SessionAccessLevel>
+                    // i + 2 is now the stfld, which assigns the session access level to the WorldStartSettings.DefaultAccessLevel
+
+                    // duplicate the WorldStartSettings
+                    codes.Insert(i + 3, new CodeInstruction(OpCodes.Dup));
+
+                    // push hideFromListing bool onto the stack
+                    codes.Insert(i + 4, new CodeInstruction(OpCodes.Call, getConfiguredHideFromListing));
+
+                    // wrap the hideFromListing bool in a nullable
+                    codes.Insert(i + 5, new CodeInstruction(OpCodes.Newobj, nullableBoolConstructor));
+
+                    // WorldStartSettings.HideFromListing = hideFromListing
+                    codes.Insert(i + 6, CodeInstruction.StoreField(typeof(WorldStartSettings), nameof(WorldStartSettings.HideFromListing)));
 
 #if DEBUG_SPAM
                     DebugCodes(codes);
@@ -146,6 +168,13 @@ namespace CloudHomeAccessLevel
             SessionAccessLevel accessLevel = config!.GetValue(KEY_DEFAULT_ACCESS_LEVEL);
             Debug($"Forcing cloud home access level to {accessLevel}");
             return accessLevel;
+        }
+
+        private static bool GetConfiguredHideFromListing()
+        {
+            bool hideFromListing = config!.GetValue(KEY_HIDE_FROM_LISTING);
+            Debug($"Forcing cloud home hidden from listing to {hideFromListing}");
+            return hideFromListing;
         }
 
         private static MethodInfo GetAsyncMethodBody(MethodInfo asyncMethod)
