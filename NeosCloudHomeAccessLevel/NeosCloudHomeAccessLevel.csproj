@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ProjectGuid>{98cbc89b-d911-45b1-b6a6-9f2345c88156}</ProjectGuid>
+    <ProjectGuid>{2550d745-a45f-44f2-8874-4c07afadb778}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <AssemblyName>CloudHomeAccessLevel</AssemblyName>
