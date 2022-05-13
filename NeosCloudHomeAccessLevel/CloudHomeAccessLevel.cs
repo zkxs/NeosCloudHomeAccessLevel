@@ -179,7 +179,7 @@ namespace CloudHomeAccessLevel
 
         private static MethodInfo GetAsyncMethodBody(MethodInfo asyncMethod)
         {
-            AsyncStateMachineAttribute asyncAttribute = (AsyncStateMachineAttribute)asyncMethod.GetCustomAttribute(typeof(AsyncStateMachineAttribute));
+            AsyncStateMachineAttribute asyncAttribute = asyncMethod.GetCustomAttribute<AsyncStateMachineAttribute>();
             if (asyncAttribute == null)
             {
                 throw new ReflectionException($"Could not find AsyncStateMachine for {asyncMethod}");
